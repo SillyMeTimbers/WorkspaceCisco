@@ -22,25 +22,59 @@ function isPhoneOpen() {
 
 // Function to copy the text to the clipboard
 function copyToClipboard(text) {
-    var textarea = document.createElement('textarea');
-    textarea.value = text;
-    document.body.appendChild(textarea);
-    textarea.select();
+    var tempInput = document.createElement('input');
+    tempInput.value = text;
+    document.body.appendChild(tempInput);
+    tempInput.select();
     document.execCommand('copy');
-    document.body.removeChild(textarea);
+    document.body.removeChild(tempInput);
 }
 
-function formatPhoneNumber(phoneNumber, isOutsourced) {
-    if (isOutsourced) {
-        var phoneNumberWithoutCountryCode = phoneNumber.slice(2);
-        return `+1 (${phoneNumberWithoutCountryCode.slice(0, 3)}) ${phoneNumberWithoutCountryCode.slice(3, 6)}-${phoneNumberWithoutCountryCode.slice(6)}`;
+function formatPhoneNumber(phoneNumber, forCopy) {
+    let countryCode = '';
+    let mainNumber = '';
+
+    if (phoneNumber.startsWith('+91')) {
+        countryCode = '+91';
+        mainNumber = phoneNumber.slice(3);
+    } else if (phoneNumber.startsWith('+1')) {
+        countryCode = '+1';
+        mainNumber = phoneNumber.slice(2);
+    } else if (phoneNumber.startsWith('1')) {
+        countryCode = '+1';
+        mainNumber = phoneNumber.slice(1);
+    } else if (phoneNumber.startsWith('91')) {
+        countryCode = '+91';
+        mainNumber = phoneNumber.slice(2);
+    } else if (phoneNumber.length === 6) {
+        mainNumber = phoneNumber;
     } else {
-        return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6)}`;
+        countryCode = ' ';
+        mainNumber = phoneNumber;
     }
+
+    let formattedNumber = '';
+
+    if (!forCopy) {
+        formattedNumber = countryCode
+            ? `${countryCode} (${mainNumber.slice(0, 3)}) ${mainNumber.slice(3, 6)}-${mainNumber.slice(6)}`
+            : `${mainNumber.slice(0, 3)}-${mainNumber.slice(3)}`;
+    } else {
+        formattedNumber = countryCode
+            ? `(${mainNumber.slice(0, 3)}) ${mainNumber.slice(3, 6)}-${mainNumber.slice(6)}`
+            : (mainNumber.length === 6 ? `${mainNumber.slice(0, 3)}${mainNumber.slice(3)}` : mainNumber); // Added condition for 6 digits number
+    }
+
+    return formattedNumber.trim();
 }
 
 function updatePhoneNumberElement(element, formattedPhoneNumber) {
     element.textContent = formattedPhoneNumber;
+}
+
+function clickHandler(event, phoneNumber) {
+    event.stopPropagation();
+    copyToClipboard(formatPhoneNumber(phoneNumber, true));
 }
 
 function RunPhoneOpen() {
@@ -48,20 +82,17 @@ function RunPhoneOpen() {
         var elements = document.querySelectorAll('[id^="call-control-participant-"]');
 
         for (var i = 0; i < elements.length; i++) {
-            var element = elements[i];
+            let element = elements[i];
 
             // Check if the copy button is already added for the element
             if (!element.hasAttribute('data-copy-button')) {
                 element.setAttribute('data-copy-button', 'true');
 
                 // Get the phone number from the element
-                var phoneNumber = element.textContent.trim();
+                let phoneNumber = element.textContent.trim();
 
-                // Determine if the number is outsourced or internal
-                var isOutsourced = phoneNumber.startsWith('+1');
-
-                // Format the phone number
-                var formattedPhoneNumber = formatPhoneNumber(phoneNumber, isOutsourced);
+                // Format the phone number for on-page display
+                var formattedPhoneNumber = formatPhoneNumber(phoneNumber, false);
 
                 // Update the phone number element with the formatted phone number
                 updatePhoneNumberElement(element, formattedPhoneNumber);
@@ -88,12 +119,7 @@ function RunPhoneOpen() {
                 button.style.marginLeft = '5px';
 
                 // Add click event listener to the button
-                button.addEventListener('click', function(event) {
-                    event.stopPropagation();
-                    var phoneNumberWithoutCountryCode = phoneNumber.slice(2);
-                    var textContent = isOutsourced ? phoneNumberWithoutCountryCode : phoneNumber;
-                    copyToClipboard(textContent);
-                });
+                button.addEventListener('click', (event) => clickHandler(event, phoneNumber));
 
                 // Append the button to the container
                 container.appendChild(button);
